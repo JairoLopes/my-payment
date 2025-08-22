@@ -138,8 +138,13 @@ const handleSubmit = async () => {
       errorMessage.value = error.message || 'O pagamento falhou.'
     } else if (paymentIntent.status === 'succeeded') {
       successMessage.value = 'Pagamento realizado com sucesso!'
-      // Aqui, você pode adicionar a lógica para redirecionar o usuário
-      // para uma página de sucesso ou limpar o formulário.
+      // Lógica adicionada para limpar o formulário e resetar o estado após o sucesso
+      amount.value = null
+      if (elements) {
+        elements.getElement('card')!.clear()
+      }
+      // Opcional: Redirecione para uma página de sucesso
+      // window.location.href = '/sucesso';
     } else {
       errorMessage.value = 'O pagamento não foi processado completamente. Tente novamente.'
     }
