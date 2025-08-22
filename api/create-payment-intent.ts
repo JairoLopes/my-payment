@@ -11,7 +11,7 @@ const cors = Cors({
 // A chave secreta do Stripe será obtida de forma segura
 // através das variáveis de ambiente do Vercel.
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2024-06-20', // Use a versão mais recente da API
+  apiVersion: '2025-07-30.basil', // Use a versão mais recente da API
 })
 
 /**
