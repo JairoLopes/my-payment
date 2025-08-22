@@ -11,7 +11,7 @@ const cors = Cors({
 // A chave secreta do Stripe será obtida de forma segura
 // através das variáveis de ambiente do Vercel.
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2025-07-30.basil', // Use a versão mais recente da API
+  apiVersion: '2024-06-20', // Use a versão mais recente da API
 })
 
 /**
@@ -56,6 +56,9 @@ export default async (req: VercelRequest, res: VercelResponse) => {
   try {
     // Extrai o valor do corpo da requisição
     const { amount } = req.body
+
+    console.log('Chave Stripe detectada?', process.env.STRIPE_SECRET_KEY ? 'Sim' : 'Não')
+    console.log('Valor recebido amount:', amount)
 
     if (!amount || typeof amount !== 'number' || amount <= 0) {
       return res.status(400).json({ error: 'Valor inválido ou ausente.' })
