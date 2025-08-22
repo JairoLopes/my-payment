@@ -2,24 +2,19 @@ import { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
 import Cors from 'cors'
 
-// Inicialize o CORS
+// Inicializa o CORS
 const cors = Cors({
   origin: true,
   methods: ['POST'],
 })
 
-// A chave secreta do Stripe será obtida de forma segura
-// através das variáveis de ambiente do Vercel.
+// Inicializa Stripe usando a chave secreta do Vercel
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2025-07-30.basil', // Use a versão mais recente da API
+  apiVersion: '2025-07-30.basil', // versão ES Module compatível
 })
 
 /**
- * Helper para executar o middleware CORS
- * @param req - Objeto de requisição Vercel
- * @param res - Objeto de resposta Vercel
- * @param fn - Função do middleware com tipagem mais precisa
- * @returns Promise
+ * Middleware para CORS
  */
 function runCorsMiddleware(
   req: VercelRequest,
@@ -32,51 +27,46 @@ function runCorsMiddleware(
 ) {
   return new Promise((resolve, reject) => {
     fn(req, res, (result: unknown) => {
-      if (result instanceof Error) {
-        return reject(result)
-      }
-      return resolve(result)
+      if (result instanceof Error) return reject(result)
+      resolve(result)
     })
   })
 }
 
 /**
- * A função principal da API.
- * @param req - A requisição HTTP
- * @param res - A resposta HTTP
+ * Função principal da API (Serverless)
  */
-export default async (req: VercelRequest, res: VercelResponse) => {
-  // Execute o middleware CORS
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Executa CORS
   await runCorsMiddleware(req, res, cors)
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Método não permitido.' })
+    return res.status(405).json({ error: 'Método não permitido.' })
   }
 
   try {
-    // Extrai o valor do corpo da requisição
-    const { amount } = req.body
+    // Debug: verificar chave e valor recebido
+    console.log('Stripe Secret Key presente?', !!process.env.STRIPE_SECRET_KEY)
+    console.log('Valor recebido:', req.body.amount)
 
-    console.log('Chave Stripe detectada?', process.env.STRIPE_SECRET_KEY ? 'Sim' : 'Não')
-    console.log('Valor recebido amount:', amount)
+    const { amount } = req.body
 
     if (!amount || typeof amount !== 'number' || amount <= 0) {
       return res.status(400).json({ error: 'Valor inválido ou ausente.' })
     }
 
-    // Cria a intenção de pagamento no Stripe
+    // Cria a Intenção de Pagamento
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Converte o valor para centavos
+      amount: Math.round(amount * 100), // centavos
       currency: 'brl',
       payment_method_types: ['card'],
     })
 
-    // Envia o "client secret" de volta para o front-end
     return res.status(200).json({
       clientSecret: paymentIntent.client_secret,
     })
-  } catch (error) {
-    console.error('Erro ao criar a intenção de pagamento:', error)
+  } catch (err: unknown) {
+    console.error('Erro ao criar intenção de pagamento:', err)
     return res.status(500).json({ error: 'Falha ao criar a intenção de pagamento.' })
   }
 }

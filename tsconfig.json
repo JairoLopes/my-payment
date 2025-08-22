@@ -1,11 +1,22 @@
 {
-  "files": [],
-  "references": [
-    {
-      "path": "./tsconfig.node.json"
-    },
-    {
-      "path": "./tsconfig.app.json"
+  "compilerOptions": {
+    "target": "ES2020", // Compila para JavaScript moderno
+    "module": "ESNext", // ES Modules compatível com Vercel
+    "moduleResolution": "Node", // Resolve módulos como o Node
+    "esModuleInterop": true, // Permite usar import/export corretamente
+    "allowSyntheticDefaultImports": true, // Permite imports de módulos comuns
+    "strict": true, // Ativa checagem rigorosa de tipos
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "outDir": "./dist", // Pasta de saída da compilação
+    "baseUrl": ".", // Base para imports absolutos
+    "paths": {
+      "@/*": ["src/*"] // Facilita importação de arquivos do src
     }
-  ]
+  },
+  "include": [
+    "src/**/*", // Frontend
+    "api/**/*" // Backend (Serverless Functions)
+  ],
+  "exclude": ["node_modules", "dist"]
 }
