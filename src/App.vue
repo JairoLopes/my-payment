@@ -1,5 +1,5 @@
 <template>
-  <div class="relative bg-gray-100 font-sans text-gray-800 overflow-x-hidden min-h-screen">
+  <div class="bg-gray-100 font-sans text-gray-800 overflow-x-hidden min-h-screen">
     <!-- Fundo com gradiente sutil -->
     <div class="absolute inset-0 bg-gradient-to-b from-slate-300 via-slate-200 to-slate-50"></div>
 
