@@ -70,6 +70,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         customer_name: name,
         customer_email: email,
       },
+      // Adicionamos a propriedade `confirm: true` conforme a exigência da Stripe.
+      // Isso permite que o `payment_method_options` seja usado na criação do PaymentIntent.
+      confirm: true,
       // Configuração para parcelamento (installments)
       payment_method_options: {
         card: {
