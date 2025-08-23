@@ -55,9 +55,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Valor inválido ou ausente.' })
     }
 
-    if (!installments || typeof installments !== 'number' || installments <= 0) {
-      return res.status(400).json({ error: 'Número de parcelas inválido ou ausente.' })
+    // Apenas verifica se installments é um número válido se ele existir
+    if (installments && (typeof installments !== 'number' || installments <= 0)) {
+      return res.status(400).json({ error: 'Número de parcelas inválido.' })
     }
+
+    // Corrigindo o erro de tipagem de payment_method_options
+    const installmentPlan: Stripe.PaymentIntentCreateParams.PaymentMethodOptions =
+      installments > 0
+        ? {
+            card: {
+              installments: {
+                enabled: true,
+                plan: {
+                  count: installments,
+                  interval: 'month',
+                  type: 'fixed_count',
+                },
+              },
+            },
+          }
+        : {}
 
     // Cria a Intenção de Pagamento
     const paymentIntent = await stripe.paymentIntents.create({
@@ -70,22 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         customer_email: email,
       },
       confirm: true,
-      payment_method_options: {
-        card: {
-          installments: {
-            enabled: true,
-            plan: {
-              count: installments,
-              interval: 'month',
-              type: 'fixed_count',
-            },
-          },
-        },
-      },
-      // Adicionamos um parâmetro de confirmação que também inclui o `return_url`.
-      // Como o PaymentIntent é criado e confirmado em uma única chamada,
-      // ele precisa de uma URL de retorno para autenticação 3D Secure.
-      // O `return_url` deve ser a URL do seu site, onde o cliente irá retornar após a confirmação.
+      payment_method_options: installmentPlan,
       confirmation_method: 'automatic',
       return_url: `https://my-payment-xi.vercel.app/`,
     })
@@ -94,6 +97,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       clientSecret: paymentIntent.client_secret,
     })
   } catch (err: unknown) {
+    if (err instanceof Error) {
+      // AQUI
+      console.error('Erro de validação da Stripe:', err.message)
+      return res.status(400).json({ error: err.message })
+    }
+    // Para todos os outros erros, retornamos a mensagem genérica
     console.error('Erro ao criar intenção de pagamento:', err)
     return res.status(500).json({ error: 'Falha ao criar a intenção de pagamento.' })
   }
