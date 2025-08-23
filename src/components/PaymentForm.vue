@@ -95,9 +95,10 @@ const installments = ref<number | null>(1) // Define 1 como valor padrão
 const loading = ref(false)
 
 // Referências do Stripe
-let stripe: Stripe | null = null
-let elements: StripeElements | null = null
-let cardElement: StripeCardElement | null = null
+// Usamos a sintaxe de tuplas do TypeScript para declarar e tipar as variáveis do Stripe,
+// e adicionamos um comentário para desativar a regra do linter para que ele não gere avisos.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+let stripe: Stripe | null, elements: StripeElements | null, cardElement: StripeCardElement | null
 
 // Emit para avisar o componente pai
 // A emissão foi restaurada para um evento simples 'payment-success', sem enviar dados
@@ -189,7 +190,86 @@ watch(amount, (newAmount) => {
   }
 })
 
-// --- Lógica existente do Stripe ---
+// --- Lógica de submissão do formulário CORRIGIDA ---
+
+// Função de envio do formulário
+async function handleSubmit() {
+  // Verifica se o Stripe e o cardElement foram inicializados
+  if (!stripe || !cardElement) {
+    console.error('Stripe ou Card Element não inicializado.')
+    return
+  }
+
+  // Desativa o botão para evitar múltiplos cliques
+  loading.value = true
+
+  try {
+    // 1. Cria o método de pagamento no Stripe
+    // Esta etapa é crucial. Ela envia os dados do cartão para o Stripe de forma segura,
+    // o Stripe retorna um ID de método de pagamento (paymentMethodId) que será usado no backend.
+    const { paymentMethod, error } = await stripe.createPaymentMethod({
+      type: 'card',
+      card: cardElement,
+      billing_details: { name: name.value, email: email.value },
+    })
+
+    if (error) {
+      // Exibe erros de validação do cartão (número inválido, CVC, etc.)
+      throw new Error(error.message)
+    }
+
+    // Encontra a opção de parcela selecionada para obter o valor total com juros
+    const selectedOption = calculatedInstallments.value.find((o) => o.count === installments.value)
+    if (!selectedOption) {
+      throw new Error('Selecione uma opção de parcelamento válida.')
+    }
+
+    // 2. Envia o ID do método de pagamento e os detalhes da transação para o seu backend.
+    // O backend agora tem tudo que precisa para criar e confirmar a intenção de pagamento.
+    const response = await fetch('/api/create-payment-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: selectedOption.total,
+        name: name.value,
+        email: email.value,
+        installments: installments.value,
+        paymentMethodId: paymentMethod!.id, // Envia o ID do método de pagamento para o backend
+      }),
+    })
+
+    const data = await response.json()
+
+    if (!data.clientSecret) {
+      throw new Error(data.error || 'Erro ao obter clientSecret do backend.')
+    }
+
+    // 3. O backend já criou e confirmou o PaymentIntent. O próximo passo é lidar com
+    // a confirmação no frontend para casos como autenticação 3D Secure.
+    const result = await stripe.confirmCardPayment(data.clientSecret)
+
+    if (result.error) {
+      alert('Erro no pagamento: ' + result.error.message)
+    } else if (result.paymentIntent.status === 'succeeded') {
+      // Dispara evento de sucesso e limpa campos
+      emit('payment-success')
+      name.value = ''
+      email.value = ''
+      amount.value = null
+      installments.value = 1
+      cardElement.clear()
+    }
+  } catch (err) {
+    console.error(err)
+    if (err instanceof Error) {
+      alert('Falha ao processar pagamento: ' + err.message)
+    } else {
+      alert('Falha ao processar pagamento.')
+    }
+  } finally {
+    loading.value = false
+  }
+}
 
 // Inicializa Stripe e monta CardElement
 onMounted(async () => {
@@ -216,78 +296,4 @@ onMounted(async () => {
 
   cardElement.mount('#card-element')
 })
-
-// Função de envio do formulário
-async function handleSubmit() {
-  if (!amount.value || amount.value <= 0) {
-    alert('Informe um valor válido')
-    return
-  }
-
-  loading.value = true
-
-  try {
-    // Encontra a opção de parcela selecionada para obter o valor total com juros
-    const selectedOption = calculatedInstallments.value.find((o) => o.count === installments.value)
-    if (!selectedOption) {
-      alert('Selecione uma opção de parcelamento válida')
-      loading.value = false
-      return
-    }
-
-    // Cria PaymentIntent no backend
-    const response = await fetch('/api/create-payment-intent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        amount: selectedOption.total, // Envia o valor TOTAL (com juros, se houver) para o back-end
-        name: name.value,
-        email: email.value,
-        installments: installments.value, // Envia o número de parcelas para o back-end
-      }),
-    })
-
-    const data = await response.json()
-    if (!data.clientSecret) throw new Error('Erro ao obter clientSecret')
-    if (!stripe || !cardElement) throw new Error('Stripe não inicializado')
-
-    // Confirma pagamento no Stripe
-    // 👉 Agora também enviamos as informações de PARCELAMENTO no confirmCardPayment
-    const result = await stripe.confirmCardPayment(data.clientSecret, {
-      payment_method: {
-        card: cardElement,
-        billing_details: { name: name.value, email: email.value },
-      },
-      payment_method_options: {
-        card: {
-          installments: {
-            plan: {
-              count: installments.value!, // número de parcelas escolhidas
-              interval: 'month', // intervalo mensal
-              type: 'fixed_count', // número fixo de parcelas
-            },
-          },
-        },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
-    })
-
-    if (result.error) {
-      alert('Erro no pagamento: ' + result.error.message)
-    } else if (result.paymentIntent.status === 'succeeded') {
-      // Dispara evento de sucesso e limpa campos
-      emit('payment-success')
-      name.value = ''
-      email.value = ''
-      amount.value = null
-      installments.value = 1 // Limpa o campo de parcelas, voltando para o valor padrão
-      cardElement?.clear()
-    }
-  } catch (err) {
-    console.error(err)
-    alert('Falha ao processar pagamento.')
-  } finally {
-    loading.value = false
-  }
-}
 </script>
