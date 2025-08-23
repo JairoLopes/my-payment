@@ -4,4 +4,4 @@
  */
 
 export const STRIPE_PUBLIC_KEY =
-  'pk_test_51RyxffC5R8uhYmiRlroMpIVBX7OsbCHiIPEdHseolvnKg6PfoPPAuVJ27UT5EwE4OS1ILluFsMyhU7YAuL4PUtjz00ZVBEbIPE' // Substitua pela sua chave publicável do Stripe
+  'pk_live_51RyxfNFyD7bpEBt4ayBHuxYOpdcHfDtNcCCs1KYwCURbfkixuN35vnDpLtP5qBwmcW3mkgDg7fCSWuQGCTGFZV2M00RU3RjNeX' // Substitua pela sua chave publicável do Stripe
