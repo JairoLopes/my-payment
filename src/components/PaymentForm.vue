@@ -85,7 +85,7 @@ import {
 import { STRIPE_PUBLIC_KEY } from '../config'
 
 // Define o novo valor mínimo para habilitar o parcelamento
-const minParcelamento = 5
+const minParcelamento = 20
 
 // Campos do formulário
 const name = ref('')
