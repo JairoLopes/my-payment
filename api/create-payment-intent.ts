@@ -45,15 +45,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // --- LINHA DE DEBUG ADICIONADA ---
-    console.log('Corpo da requisição recebido:', req.body)
-
-    // Extrai os campos da requisição.
-    // O valor de 'amount' agora já inclui o juros, se houver, calculado no front-end.
-    // O novo campo `paymentMethodId` é crucial para esta correção.
     const { amount, name, email, installments, paymentMethodId } = req.body
 
-    // Adiciona uma validação para o novo campo
     if (!paymentMethodId) {
       return res.status(400).json({ error: 'ID do método de pagamento ausente.' })
     }
@@ -62,31 +55,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Valor inválido ou ausente.' })
     }
 
-    // Adiciona validação para o número de parcelas
     if (!installments || typeof installments !== 'number' || installments <= 0) {
       return res.status(400).json({ error: 'Número de parcelas inválido ou ausente.' })
     }
 
-    // A validação de valor mínimo (R$50,00) para parcelamento foi movida para o front-end,
-    // garantindo que o back-end só receba requisições válidas.
-
     // Cria a Intenção de Pagamento
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Converte o valor total para centavos
+      amount: Math.round(amount * 100),
       currency: 'brl',
-      // Anteriormente, a intenção de pagamento era criada sem um método de pagamento.
-      // O Stripe Elements agora cria o método de pagamento no front-end e o envia para cá.
-      // Agora, associamos o `paymentMethodId` recebido na requisição.
       payment_method: paymentMethodId,
-      receipt_email: email, // Stripe manda recibo automático
+      receipt_email: email,
       metadata: {
         customer_name: name,
         customer_email: email,
       },
-      // Adicionamos a propriedade `confirm: true` para que o Stripe crie e confirme
-      // a intenção de pagamento na mesma chamada, pois o método de pagamento já foi fornecido.
       confirm: true,
-      // A configuração de parcelamento agora é processada junto com o método de pagamento.
       payment_method_options: {
         card: {
           installments: {
@@ -99,6 +82,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
         },
       },
+      // Adicionamos um parâmetro de confirmação que também inclui o `return_url`.
+      // Como o PaymentIntent é criado e confirmado em uma única chamada,
+      // ele precisa de uma URL de retorno para autenticação 3D Secure.
+      // O `return_url` deve ser a URL do seu site, onde o cliente irá retornar após a confirmação.
+      confirmation_method: 'automatic',
+      return_url: `https://my-payment-xi.vercel.app/`,
     })
 
     return res.status(200).json({
