@@ -45,6 +45,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // --- LINHA DE DEBUG ADICIONADA ---
+    console.log('Corpo da requisição recebido:', req.body)
+
     // Extrai os campos da requisição.
     // O valor de 'amount' agora já inclui o juros, se houver, calculado no front-end.
     // O novo campo `paymentMethodId` é crucial para esta correção.
