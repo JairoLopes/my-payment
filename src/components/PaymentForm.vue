@@ -1,14 +1,16 @@
 <template>
+  <!-- Evita reload da página -->
   <form
     id="payment-form"
-    @submit.prevent="handleSubmit"  <!-- Evita reload da página -->
+    @submit.prevent="handleSubmit"
     class="max-w-md mx-auto bg-white backdrop-blur-sm shadow-md rounded-2xl p-6 space-y-4"
   >
     <!-- Nome do usuário -->
+    <!-- Bind do campo de nome -->
     <label class="block">
       <span class="text-gray-700 text-sm">Nome</span>
       <input
-        v-model="name"               <!-- Bind do campo de nome -->
+        v-model="name"
         type="text"
         required
         placeholder="Digite seu nome"
@@ -20,7 +22,7 @@
     <label class="block">
       <span class="text-gray-700 text-sm">E-mail</span>
       <input
-        v-model="email"              <!-- Bind do campo de e-mail -->
+        v-model="email"
         type="email"
         required
         placeholder="seu@email.com"
@@ -32,7 +34,7 @@
     <label class="block">
       <span class="text-gray-700 text-sm">Valor (R$)</span>
       <input
-        v-model.number="amount"      <!-- Bind numérico do valor -->
+        v-model.number="amount"
         type="number"
         min="1"
         required
