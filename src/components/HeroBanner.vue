@@ -1,19 +1,28 @@
 <template>
-  <div
-    class="relative min-h-[60vh] md:min-h-screen w-full flex flex-col items-center justify-center p-6 text-center text-gray-800"
+  <section
+    class="relative min-h-[60vh] md:min-h-screen flex flex-col items-center justify-center px-6 text-center"
   >
-    <div class="absolute inset-0 z-0 bg-gradient-to-br from-white to-teal-50 opacity-95"></div>
-
-    <div class="relative z-10 max-w-4xl mx-auto">
-      <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold text-teal-700 leading-tight mb-4">
-        Facilitando Seus Pagamentos
+    <div class="relative z-10 max-w-3xl mx-auto">
+      <!-- Título -->
+      <h1 class="text-3xl sm:text-5xl font-bold text-slate-800 leading-tight mb-6">
+        Pagamentos Online convenientes
       </h1>
-      <p class="text-lg sm:text-xl text-gray-600 font-normal mb-8 max-w-2xl mx-auto">
-        Bem-vindo à sua página de pagamentos segura e conveniente. Preencha o formulário abaixo para
-        concluir sua transação com facilidade e tranquilidade.
+
+      <!-- Descrição -->
+      <p class="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-8">
+        Uma plataforma simples, segura e prática para receber pagamentos online. Informe seus dados,
+        o valor e finalize sua transação com tranquilidade.
       </p>
+
+      <!-- Call to action opcional -->
+      <a
+        href="#payment-form"
+        class="inline-block bg-teal-600 text-white px-6 py-3 rounded-xl shadow-md hover:bg-teal-700 transition"
+      >
+        Iniciar Pagamento
+      </a>
     </div>
-  </div>
+  </section>
 </template>
 
 <script setup lang="ts"></script>

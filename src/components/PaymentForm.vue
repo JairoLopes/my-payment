@@ -1,158 +1,149 @@
 <template>
-  <!-- Container principal do formulário, com estilo elegante e centralizado -->
-  <div class="bg-white p-8 rounded-lg shadow-md max-w-lg mx-auto">
-    <!-- Título do formulário -->
-    <h2 class="text-2xl text-gray-800 font-semibold mb-6 text-center">Detalhes do Pagamento</h2>
+  <form
+    id="payment-form"
+    @submit.prevent="handleSubmit"
+    class="max-w-md mx-auto bg-white backdrop-blur-sm shadow-md rounded-2xl p-6 space-y-4"
+  >
+    <!-- Nome -->
+    <label class="block">
+      <span class="text-gray-700 text-sm">Nome</span>
+      <input
+        v-model="name"
+        type="text"
+        required
+        class="mt-1 block w-full rounded-xl border border-gray-200/50 bg-gray-50 p-2.5 text-gray-800 placeholder-gray-400 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30"
+        placeholder="Digite seu nome"
+      />
+    </label>
 
-    <!-- O formulário em si, com um listener para o evento de submit -->
-    <form @submit.prevent="handleSubmit">
-      <!-- Container para o campo de input do valor -->
-      <div class="mb-4">
-        <label for="amount" class="block text-gray-700 font-medium mb-2">Valor a Pagar</label>
-        <div class="relative">
-          <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">R$</span>
-          <!-- Campo para o usuário digitar o valor -->
-          <input
-            id="amount"
-            type="number"
-            v-model.number="amount"
-            required
-            class="w-full pl-8 pr-4 py-2 border rounded-md border-gray-300 text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-500"
-          />
-        </div>
-      </div>
+    <!-- E-mail -->
+    <label class="block">
+      <span class="text-gray-700 text-sm">E-mail</span>
+      <input
+        v-model="email"
+        type="email"
+        required
+        class="mt-1 block w-full rounded-xl border border-gray-200/50 bg-gray-50 p-2.5 text-gray-800 placeholder-gray-400 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30"
+        placeholder="seu@email.com"
+      />
+    </label>
 
-      <!-- Container para o elemento do cartão de crédito do Stripe -->
-      <div id="card-element" class="mt-6 p-4 border rounded-md border-gray-300">
-        <!-- O Stripe Elements irá injetar o formulário seguro do cartão aqui. -->
-      </div>
+    <!-- Valor -->
+    <label class="block">
+      <span class="text-gray-700 text-sm">Valor (R$)</span>
+      <input
+        v-model.number="amount"
+        type="number"
+        min="1"
+        required
+        class="mt-1 block w-full rounded-xl border border-gray-200/50 bg-gray-50 p-2.5 text-gray-800 placeholder-gray-400 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-500/30"
+        placeholder="Ex: 150"
+      />
+    </label>
 
-      <!-- Botão para enviar o formulário -->
-      <button
-        type="submit"
-        class="w-full bg-teal-500 text-white font-semibold py-3 px-4 rounded-md hover:bg-teal-600 transition duration-300 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 mt-6"
-        :disabled="processing"
-      >
-        <span v-if="!processing">Pagar</span>
-        <span v-else>Processando...</span>
-      </button>
+    <!-- Stripe CardElement (permanece antes do botão) -->
+    <div
+      id="card-element"
+      class="mt-1 p-3 rounded-xl border border-gray-200/50 bg-gray-50 transition focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/30"
+    ></div>
 
-      <!-- Seção para exibir mensagens de erro -->
-      <div v-if="errorMessage" class="mt-4 text-red-500 text-sm font-medium">
-        {{ errorMessage }}
-      </div>
-
-      <!-- Seção para exibir mensagens de sucesso -->
-      <div v-if="successMessage" class="mt-4 text-green-600 text-sm font-medium">
-        {{ successMessage }}
-      </div>
-    </form>
-  </div>
+    <button
+      type="submit"
+      class="w-full bg-teal-600 text-white font-medium py-3 rounded-xl shadow hover:bg-teal-700 active:bg-teal-800 disabled:opacity-50 transition"
+      :disabled="loading"
+    >
+      {{ loading ? 'Processando...' : 'Pagar' }}
+    </button>
+  </form>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { loadStripe, type Stripe, type StripeElements } from '@stripe/stripe-js'
-import { STRIPE_PUBLIC_KEY } from '@/config'
+import {
+  loadStripe,
+  type Stripe,
+  type StripeElements,
+  type StripeCardElement,
+} from '@stripe/stripe-js'
+import { STRIPE_PUBLIC_KEY } from '../config'
 
-// Estados reativos
+const name = ref('')
+const email = ref('')
 const amount = ref<number | null>(null)
-const errorMessage = ref<string | null>(null)
-const successMessage = ref<string | null>(null)
-const processing = ref<boolean>(false)
+const loading = ref(false)
 
-// Variáveis para as instâncias do Stripe
-let stripe: Stripe | null
-let elements: StripeElements | null
+let stripe: Stripe | null = null
+let elements: StripeElements | null = null
+let cardElement: StripeCardElement | null = null
 
-/**
- * Hook do ciclo de vida que é chamado quando o componente é montado.
- * É aqui que inicializamos o Stripe e montamos o formulário do cartão.
- */
 onMounted(async () => {
-  if (!STRIPE_PUBLIC_KEY) {
-    console.error('Chave pública do Stripe não definida. Por favor, configure-a em src/config.ts')
-    errorMessage.value = 'Erro de configuração. Chave de pagamento ausente.'
+  stripe = await loadStripe(STRIPE_PUBLIC_KEY)
+  if (!stripe) {
+    console.error('Falha ao carregar Stripe')
     return
   }
 
-  const stripePromise = loadStripe(STRIPE_PUBLIC_KEY)
-  stripe = await stripePromise
+  elements = stripe.elements()
 
-  if (stripe) {
-    elements = stripe.elements()
-    const cardElement = elements.create('card')
-    cardElement.mount('#card-element')
-  } else {
-    errorMessage.value = 'Falha ao carregar o Stripe. Tente novamente.'
-  }
+  // Estilização interna do CardElement (sem mudar posição/ordem)
+  cardElement = elements.create('card', {
+    hidePostalCode: true,
+    style: {
+      base: {
+        fontSize: '16px',
+        color: '#1f2937', // gray-800
+        '::placeholder': { color: '#9ca3af' }, // gray-400
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif',
+      },
+      invalid: { color: '#ef4444' }, // red-500
+    },
+  })
+
+  cardElement.mount('#card-element')
 })
 
-/**
- * Função chamada quando o formulário é submetido.
- * Esta é a lógica de pagamento completa.
- */
-const handleSubmit = async () => {
-  // Limpa mensagens anteriores e ativa o estado de processamento
-  errorMessage.value = null
-  successMessage.value = null
-  processing.value = true
-
-  // Validação básica do valor
+async function handleSubmit() {
   if (!amount.value || amount.value <= 0) {
-    errorMessage.value = 'Por favor, insira um valor válido.'
-    processing.value = false
+    alert('Informe um valor válido')
     return
   }
 
-  if (!stripe || !elements) {
-    errorMessage.value = 'Erro ao inicializar o Stripe. Tente recarregar a página.'
-    processing.value = false
-    return
-  }
+  loading.value = true
 
   try {
-    // Passo 1: Chama a função de back-end para criar a intenção de pagamento
     const response = await fetch('/api/create-payment-intent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: amount.value }),
+      body: JSON.stringify({
+        amount: amount.value,
+        name: name.value,
+        email: email.value,
+      }),
     })
 
-    const { clientSecret, error: backendError } = await response.json()
+    const data = await response.json()
+    if (!data.clientSecret) throw new Error('Erro ao obter clientSecret')
 
-    if (backendError) {
-      errorMessage.value = backendError
-      processing.value = false
-      return
-    }
+    if (!stripe || !cardElement) throw new Error('Stripe não inicializado')
 
-    // Passo 2: Confirma o pagamento usando o client secret recebido
-    const { paymentIntent, error } = await stripe.confirmCardPayment(clientSecret, {
+    const result = await stripe.confirmCardPayment(data.clientSecret, {
       payment_method: {
-        card: elements.getElement('card')!,
+        card: cardElement,
+        billing_details: { name: name.value, email: email.value },
       },
     })
 
-    if (error) {
-      errorMessage.value = error.message || 'O pagamento falhou.'
-    } else if (paymentIntent.status === 'succeeded') {
-      successMessage.value = 'Pagamento realizado com sucesso!'
-      // Lógica adicionada para limpar o formulário e resetar o estado após o sucesso
-      amount.value = null
-      if (elements) {
-        elements.getElement('card')!.clear()
-      }
-      // Opcional: Redirecione para uma página de sucesso
-      // window.location.href = '/sucesso';
-    } else {
-      errorMessage.value = 'O pagamento não foi processado completamente. Tente novamente.'
+    if (result.error) {
+      alert('Erro no pagamento: ' + result.error.message)
+    } else if (result.paymentIntent.status === 'succeeded') {
+      alert('Pagamento realizado com sucesso!')
     }
   } catch (err) {
-    console.error('Erro de rede:', err)
-    errorMessage.value = 'Ocorreu um erro de conexão. Verifique sua rede e tente novamente.'
+    console.error(err)
+    alert('Falha ao processar pagamento.')
   } finally {
-    processing.value = false
+    loading.value = false
   }
 }
 </script>

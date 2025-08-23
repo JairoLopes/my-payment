@@ -10,7 +10,7 @@ const cors = Cors({
 
 // Inicializa Stripe usando a chave secreta do Vercel
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2025-07-30.basil', // versão ES Module compatível
+  apiVersion: '2025-07-30.basil', // ajuste para versão correta
 })
 
 /**
@@ -45,11 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Debug: verificar chave e valor recebido
-    console.log('Stripe Secret Key presente?', !!process.env.STRIPE_SECRET_KEY)
-    console.log('Valor recebido:', req.body.amount)
-
-    const { amount } = req.body
+    const { amount, name, email } = req.body
 
     if (!amount || typeof amount !== 'number' || amount <= 0) {
       return res.status(400).json({ error: 'Valor inválido ou ausente.' })
@@ -57,9 +53,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Cria a Intenção de Pagamento
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // centavos
+      amount: Math.round(amount * 100), // em centavos
       currency: 'brl',
       payment_method_types: ['card'],
+      receipt_email: email, // Stripe manda recibo automático
+      metadata: {
+        customer_name: name,
+        customer_email: email,
+      },
     })
 
     return res.status(200).json({
