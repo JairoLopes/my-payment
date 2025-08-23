@@ -45,21 +45,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { amount, name, email } = req.body
+    // Extrai o novo campo de parcelas da requisição
+    // O valor de 'amount' agora já inclui o juros, se houver, calculado no front-end.
+    const { amount, name, email, installments } = req.body
 
     if (!amount || typeof amount !== 'number' || amount <= 0) {
       return res.status(400).json({ error: 'Valor inválido ou ausente.' })
     }
+    // Adiciona validação para o número de parcelas
+    if (!installments || typeof installments !== 'number' || installments <= 0) {
+      return res.status(400).json({ error: 'Número de parcelas inválido ou ausente.' })
+    }
+
+    // A validação de valor mínimo (R$50,00) para parcelamento foi movida para o front-end,
+    // garantindo que o back-end só receba requisições válidas.
 
     // Cria a Intenção de Pagamento
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // em centavos
+      amount: Math.round(amount * 100), // Converte o valor total para centavos
       currency: 'brl',
       payment_method_types: ['card'],
       receipt_email: email, // Stripe manda recibo automático
       metadata: {
         customer_name: name,
         customer_email: email,
+      },
+      // Configuração para parcelamento (installments)
+      payment_method_options: {
+        card: {
+          installments: {
+            enabled: true,
+            plan: {
+              count: installments,
+              interval: 'month',
+              type: 'fixed_count',
+            },
+          },
+        },
       },
     })
 
